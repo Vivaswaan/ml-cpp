@@ -2,13 +2,7 @@
 #include <cstdlib>
 #include <cmath> 
 #include <iostream>
-
-using namespace std;
-
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef float f32;
+#include "rand.h"
 
 // Based on pcg random number generator (https://pcg-random.org/)
 // Licensed under Apache License 2.0 (NO WARRANTY, etc. see website)
@@ -21,15 +15,8 @@ void plat_get_entropy(void* data, u32 size) {
 }
 #endif
 
-class prng_state {
-    u64 state;
-    u64 inc;
 
-    f32 prev_norm;
-    bool has_prev_norm;
-
-    public:
-    prng_state(){
+    prng_state::prng_state(){
         u64 seeds[2] = {0};
         plat_get_entropy(seeds, sizeof(seeds));
         u64 initseq = seeds[0], initstate = seeds[1];
@@ -42,7 +29,7 @@ class prng_state {
         this->has_prev_norm = false;
     }
 
-    u32 prng_rand_r(){
+    u32 prng_state::prng_rand_r(){
         u64 oldstate = this->state;
         this->state = oldstate * 6364136223846793005ULL + this->inc;
         u32 xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
@@ -50,15 +37,15 @@ class prng_state {
         return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
     }
 
-    u32 operator()(){
+    u32 prng_state::operator()(){
         return this->prng_rand_r();
     }
 
-    f32 prng_randf_r(){
+    f32 prng_state::prng_randf_r(){
         return (f32)this->prng_rand_r() / (f32)UINT32_MAX;
     }
 
-    f32 prng_rand_norm_r(){ // uses box - muller transform
+    f32 prng_state::prng_rand_norm_r(){ // uses box - muller transform
         if(this->has_prev_norm){
             f32 output = this->prev_norm;
             this->prev_norm = NAN;
@@ -71,7 +58,7 @@ class prng_state {
         } while (u1 == 0.0);
         f32 u2 = this->prng_randf_r();
 
-        auto mag = sqrtf(-2.0 * logf(u1));
+        auto mag = sqrtf(-2.0f * logf(u1));
         auto z0  = mag * cosf(2.0 * M_PI * u2);
         auto z1  = mag * sinf(2.0 * M_PI * u2);
         this->prev_norm = z1;
@@ -79,12 +66,11 @@ class prng_state {
         return z0;
     }
 
-};
 
 // int main(void) {
 //     prng_state rng;
 //     for (int i=0;i<10;i++){
-//         cout<<rng()<<endl;
+//         std::cout<<rng()<<"\n";
 //     }
 //     return 0;
 // }
